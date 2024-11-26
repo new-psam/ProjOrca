@@ -4,6 +4,7 @@ go
 use [projOrca]
 go
 
+
 create table [usuario](
 	[idUsuario] UNIQUEIDENTIFIER NOT NULL,
 	[nome] nvarchar(120) not null,
@@ -14,6 +15,14 @@ create table [usuario](
 	CONSTRAINT [pk_usuario] primary key([idUsuario])
 )
 go
+
+alter table usuario
+add constraint uc_usuario_cpf UNIQUE(CPF)
+alter table usuario
+add constraint uc_usuario_celular UNIQUE(celular)
+alter table usuario
+add constraint uc_usuario_username UNIQUE(username)
+GO
 
 select * from [usuario]
 go
@@ -31,15 +40,6 @@ create table [Conta_Financeira](
 )
 go
 
-/*
-CONSTRAINT [PK_CareerItem] PRIMARY KEY ([CourseId], [CareerId]),
-    CONSTRAINT [FK_CareerItem_Career] FOREIGN KEY ([CareerId]) REFERENCES[Career] ([Id]),
-    CONSTRAINT [FK_CarrerItem_Course] FOREIGN KEY ([CourseId]) REFERENCES[Course] ([Id])
-
-ALTER TABLE ALUNO
-ADD CONSTRAINT CK_SEXO CHECK (SEXO IN('M', 'F'))
-CHECK (UF IN('RJ', 'SP', 'MG')),
-*/
 
 ALTER TABLE [Conta_Financeira]
 ADD CONSTRAINT [ck_tipo] CHECK(tipo IN('cco', 'inv', 'ccr', 'din'))
@@ -47,3 +47,37 @@ go
 
 select * from Conta_Financeira
 go
+
+/* criação das 3 últimas tabelas */
+use [projOrca]
+go
+
+create table [categoria](
+	[idCategoria]	uniqueidentifier,
+	[nome] nvarchar(50),
+	CONSTRAINT [pk_categoria] primary key ([idCategoria])
+)
+go
+
+ALTER TABLE [categoria]
+ADD CONSTRAINT [uc_categoria_nome] unique([nome])
+go
+
+create table [gasto_credito](
+	[idgasto_credito] uniqueidentifier,
+	[nome] nvarchar(70) not null,
+	[id_categoria] uniqueidentifier not null,
+	CONSTRAINT [pk_gasto_credito] primary key([idgasto_credito]),
+		CONSTRAINT [fk_gasto_credito_categoria] FOREIGN KEY ([id_categoria]) REFERENCES[categoria] ([idCategoria])
+)
+go
+
+ALTER TABLE [gasto_credito]
+ADD constraint [uc_gasto_credito] unique([nome])
+go
+
+/*
+em caso de falha sempre dropa a tabela que tenha o foreign key primeiro
+drop table [gasto_credito]
+drop table [categoria]
+*/
