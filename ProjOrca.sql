@@ -63,21 +63,41 @@ ALTER TABLE [categoria]
 ADD CONSTRAINT [uc_categoria_nome] unique([nome])
 go
 
-create table [gasto_credito](
-	[idgasto_credito] uniqueidentifier,
+create table [subcategoria](
+	[idsubcategoria] uniqueidentifier,
 	[nome] nvarchar(70) not null,
 	[id_categoria] uniqueidentifier not null,
-	CONSTRAINT [pk_gasto_credito] primary key([idgasto_credito]),
-		CONSTRAINT [fk_gasto_credito_categoria] FOREIGN KEY ([id_categoria]) REFERENCES[categoria] ([idCategoria])
+	CONSTRAINT [pk_gasto_credito] primary key([idsubcategoria]),
+		CONSTRAINT [fk_subcategoria_categoria] FOREIGN KEY ([id_categoria]) REFERENCES[categoria] ([idCategoria])
 )
 go
 
-ALTER TABLE [gasto_credito]
-ADD constraint [uc_gasto_credito] unique([nome])
+ALTER TABLE [subcategoria]
+ADD constraint [uc_subcategoria] unique([nome])
 go
+
+-- drop table [gasto_credito]
 
 /*
 em caso de falha sempre dropa a tabela que tenha o foreign key primeiro
 drop table [gasto_credito]
 drop table [categoria]
 */
+use projorca
+go
+
+create table [transacao](
+	[idtransacao] uniqueidentifier,
+	[data] datetime not null,
+	[valor] money,
+	[descricao] nvarchar(500),
+	[tipo] char(1) not null check (tipo IN('C', 'D')),
+	[id_subcategoria] uniqueidentifier not null,
+	[id_cFInanceira] uniqueidentifier not null,
+	CONSTRAINT [pk_transacao] primary key ([idtransacao]),
+		CONSTRAINT [fk_transacao_subcategoria] FOREIGN KEY([id_subcategoria]) REFERENCES[subcategoria] ([idsubcategoria]),
+		CONSTRAINT[fk_transacao_cfinanceira] foreign key([id_cfinanceira]) references[conta_financeira] ([idCfinanceiro]) 
+)
+go
+
+-- drop table transacao
