@@ -101,3 +101,55 @@ create table [transacao](
 go
 
 -- drop table transacao
+
+/* trigger de atualização de saldo da Conta Financeira*/
+
+CREATE TRIGGER [tr_atualiza_saldo]
+ON [transacao]
+FOR INSERT, UPDATE
+AS
+BEGIN
+		UPDATE [Conta_Financeira]
+		SET [saldo] = [saldo] + (select valor FROM inserted)
+		WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
+
+
+END
+GO
+	
+/* testando a trigger */
+
+select * from subcategoria -- '9B7A029A-8629-4687-A219-4973DDA4A887' (viagem)
+select * from Conta_Financeira -- '36FFC4DF-54BA-4B52-87FC-04DD66475EC6' (BB)
+select * from transacao
+go
+
+insert into [transacao] values(
+	newid(), getdate(), null, 'compra passagem fim de ano', 'd', '9B7A029A-8629-4687-A219-4973DDA4A887',
+	'36FFC4DF-54BA-4B52-87FC-04DD66475EC6')
+go
+
+-- é necessário corrigir a trigger para dar valor negativo para tipo 'd' e positivo para 'c'
+
+ALTER TRIGGER [tr_atualiza_saldo]
+ON [transacao]
+FOR INSERT, UPDATE
+AS
+	DECLARE @entrada_saida money,
+		    @tipo char(1)
+
+	set @entrada_saida = (select ISNULL(SUM(valor), 0) FROM inserted)
+	set @tipo = (select tipo FROM inserted)
+BEGIN
+		if @tipo = 'd'
+			set @entrada_saida = @entrada_saida * -1
+
+
+END
+		UPDATE [Conta_Financeira]
+		SET [saldo] = [saldo] + @entrada_saida
+		WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
+
+GO
+
+-- falta azer a clausula do delete (ou seja se uma tansação for deletada)
