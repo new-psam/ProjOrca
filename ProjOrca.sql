@@ -45,6 +45,10 @@ ALTER TABLE [Conta_Financeira]
 ADD CONSTRAINT [ck_tipo] CHECK(tipo IN('cco', 'inv', 'ccr', 'din'))
 go
 
+ALTER TABLE [Conta_Financeira]
+ALTER COLUMN [saldo] MONEY NOT NULL;
+GO
+
 select * from Conta_Financeira
 go
 
@@ -104,28 +108,21 @@ go
 
 /* trigger de atualização de saldo da Conta Financeira*/
 
-CREATE TRIGGER [tr_atualiza_saldo]
-ON [transacao]
-FOR INSERT, UPDATE
-AS
-BEGIN
-		UPDATE [Conta_Financeira]
-		SET [saldo] = [saldo] + (select valor FROM inserted)
-		WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
 
-
-END
-GO
-	
-/* testando a trigger */
-
+/*	
+ testando a trigger 
+update [transacao] set [valor] = 2000, [tipo] = 'c' where [idtransacao] = 'C9E1404D-424F-4F80-9657-F222D9C458DF'
 select * from subcategoria -- '9B7A029A-8629-4687-A219-4973DDA4A887' (viagem)
 select * from Conta_Financeira -- '36FFC4DF-54BA-4B52-87FC-04DD66475EC6' (BB)
 select * from transacao
 go
 
+delete from transacao where idtransacao = 'E5D7AD46-2DAB-470F-9638-7AAA204FE04E'
+
+
+
 insert into [transacao] values(
-	newid(), getdate(), null, 'compra passagem fim de ano', 'd', '9B7A029A-8629-4687-A219-4973DDA4A887',
+	newid(), getdate(), 1000, 'compra passagem fim de ano', 'd', '9B7A029A-8629-4687-A219-4973DDA4A887',
 	'36FFC4DF-54BA-4B52-87FC-04DD66475EC6')
 go
 
@@ -133,7 +130,7 @@ go
 
 ALTER TRIGGER [tr_atualiza_saldo]
 ON [transacao]
-FOR INSERT, UPDATE
+FOR INSERT
 AS
 	DECLARE @entrada_saida money,
 		    @tipo char(1)
@@ -151,5 +148,132 @@ END
 		WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
 
 GO
+*/
+-- falta fazer a clausula do delete (ou seja se uma tansação for deletada)
+-- TRIGGER FINALIZADA
 
--- falta azer a clausula do delete (ou seja se uma tansação for deletada)
+ALTER TRIGGER [tr_atualiza_saldo]
+ON [transacao]
+FOR INSERT, UPDATE, DELETE
+AS
+BEGIN
+	DECLARE @saldo_inserted money,
+			@saldo_deleted money,
+		    @tipo char(1)
+
+	
+	BEGIN
+	set @saldo_inserted = (select ISNULL(SUM(valor), 0) FROM inserted) -- 
+	set @saldo_deleted = (select ISNULL(SUM(valor), 0) FROM deleted)
+	set @tipo = (select tipo FROM inserted)
+
+	-- AJUSTE DE NEGATIVO POSITIVO NO CAMPO VALOR
+	
+		IF @tipo = 'd'
+			set @saldo_inserted = @saldo_inserted * -1
+		
+		IF (select [tipo] FROM deleted) = 'd'
+			set @saldo_deleted = @saldo_deleted * -1	
+	END
+
+	BEGIN
+	IF (SELECT [tipo] FROM deleted) = NULL
+		
+			UPDATE [Conta_Financeira]
+			SET [saldo] = [saldo] + @saldo_inserted
+			WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
+		
+	ELSE IF (SELECT [tipo] FROM  inserted) = NULL
+		
+			UPDATE [Conta_Financeira]
+			SET [saldo] = [saldo] - @saldo_deleted
+			WHERE [idCFinanceiro] = (select id_cFInanceira FROM deleted) 
+		
+	
+	ELSE
+			UPDATE [Conta_Financeira]
+			SET [saldo] = [saldo] + (@saldo_inserted - @saldo_deleted)
+			--select @saldo_inserted AS 'SALDO_INSERIDO', @saldo_deleted AS 'SALDO_DELETADO'
+		
+	END
+END
+GO
+
+-- TESTES OK
+
+delete from transacao where idtransacao = '4838DC08-5206-4E5D-AC03-C21D9C29D492'
+
+insert into [transacao] values(
+	newid(), getdate(), 5000, 'HOTEL', 'D', '9B7A029A-8629-4687-A219-4973DDA4A887',
+	'36FFC4DF-54BA-4B52-87FC-04DD66475EC6')
+
+update [transacao] set [valor] = 1000, [tipo] = 'D' where [idtransacao] = '0C5E5085-808A-417D-94AB-1162BAC1DCEF'
+
+select * from subcategoria -- '9B7A029A-8629-4687-A219-4973DDA4A887' (viagem)
+select * from Conta_Financeira -- '36FFC4DF-54BA-4B52-87FC-04DD66475EC6' (BB)
+select * from transacao
+go
+
+/*DROP TRIGGER [tr_atualiza_saldo]
+DELETE FROM TRANSACAO
+go
+*/
+
+
+
+go
+
+
+
+
+update [Conta_Financeira] set [saldo] = 10000 where idCFinanceiro = '36FFC4DF-54BA-4B52-87FC-04DD66475EC6'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+CREATE TRIGGER [tr_atualiza_saldo_upDel]
+ON [transacao]
+FOR UPDATE, DELETE
+AS
+	DECLARE @entrada_saida money,
+			@valor_deletado money,
+			@tipo_deletado money,
+		    @tipo char(1)
+
+	set @entrada_saida = (select ISNULL(SUM(valor), 0) FROM inserted)
+	set @valor_deletado = (select ISNULL(SUM(valor), 0) FROM deleted)
+	set @tipo_deletado = (select tipo FROM deleted)
+	set @tipo = (select tipo FROM inserted)
+	
+	IF update(transacao)
+	BEGIN
+		if @tipo = 'd'
+			set @valor_deletado = @entrada_saida * -1
+		
+
+
+	END
+
+BEGIN
+		if @tipo = 'd'
+			set @entrada_saida = @entrada_saida * -1
+
+
+END
+		UPDATE [Conta_Financeira]
+		SET [saldo] = [saldo] + @entrada_saida
+		WHERE idCFinanceiro = (select id_cFInanceira FROM inserted)
+
+GO
+*/
